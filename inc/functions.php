@@ -26,17 +26,18 @@ function wpbp_convert_single_line_comments($matches) {
  * one which exists will be returned. If none exist then the function will 
  * return false.
  * 
- * @param mixed $files A path to a single file or 
+ * @param mixed $files A path to a single file or an array of file paths
+ * @param string $prepend Optional. String to be prepended to the path 
  * @return string
  */
-function wpbp_file_exists_cascade($files) {
+function wpbp_file_exists_cascade($files, $prepend = '') {
     if (is_array($files)) {
         foreach ($files as $file) {
-            if (file_exists($file)) {
+            if (file_exists($prepend_path . $file)) {
                 return $file;
             }
         }
-    } else if (file_exists($files)) {
+    } else if (file_exists($prepend_path . $files)) {
         return $files;
     }
     return false;
@@ -48,42 +49,108 @@ function wpbp_file_exists_cascade($files) {
  * Runs through the template file hierarchy and returns the appropriate template
  * file to use from a given path.
  * 
- * @param type $path
+ * @param type $path The path to the directory in which to search for the template files.
  * @return string 
  */
 function wpbp_get_template_file($path) {
     $path = preg_replace('|[\\/]+?$|', '', $path);
     
-    if (is_404()) {
-        $file = wpbp_file_exists_cascade($path . '/404.php');
-    } else if (is_search()) {
-        $file = wpbp_file_exists_cascade($path . '/search.php');
-    } else if (is_tax()) {
-        $taxonomy = get_query_var('taxonomy');
-        $term = get_query_var($taxonomy);
-        
-        $file = wpbp_file_exists_cascade(array(        
-            $path . '/taxonomy-' . $taxonomy . '-' . $term . '.php',
-            $path . '/taxonomy-' . $taxonomy . '.php',
-            $path . '/taxonomy.php',
-            $path . '/archive.php',
-        ));
-    } else if (is_category()) {
-        $category = get_category(get_query_var('cat'));
-        $id = $category->cat_ID;
-        $slug = $category->slug;
-        
-        $file = wpbp_file_exists_cascade(array(
-            $path . '/category-' . $slug . '.php',
-            $path . '/category-' . $id . '.php',
-            $path . '/category.php',
-            $path . '/archive.php',
-        ));
+    $check_files = array();
+    
+    if (is_front_page()) {
+        $check_files[] = 'front-page.php';
     }
     
-    if (!$file) $file = $path . '/index.php';
+    if (is_404()) {
+        $check_files[] = '404.php';
+    } else if (is_search()) {
+        $check_files[] = 'search.php';
+    } else if (is_archive()) {
+        if (is_tax()) {
+            $taxonomy = get_query_var('taxonomy');
+            $term = get_query_var($taxonomy);
+
+            $check_files[] = 'taxonomy-' . $taxonomy . '-' . $term . '.php';
+            $check_files[] = 'taxonomy-' . $taxonomy . '.php';
+            $check_files[] = 'taxonomy.php';
+        } else if (is_category()) {
+            $category = get_category(get_query_var('cat'));
+            $id = $category->cat_ID;
+            $slug = $category->slug;
+
+            $check_files[] = 'category-' . $slug . '.php';
+            $check_files[] = 'category-' . $id . '.php';
+            $check_files[] = 'category.php';
+        } else if (is_tag()) {
+            $id = get_query_var('tag_id');
+            $slug = get_query_var('tag');
+
+            $check_files[] = 'tag-' . $slug . '.php';
+            $check_files[] = 'tag-' . $id . '.php';
+            $check_files[] = 'tag.php';
+        } else if (is_author()) {
+            $author = get_userdata(get_query_var('author'));
+            $id = $author->ID;
+            $nicename = $author->data->user_nicename;
+                    
+            $check_files[] = 'author-' . $nicename . '.php';
+            $check_files[] = 'author-' . $id . '.php';
+            $check_files[] = 'author.php';
+        } else if (is_date()) {
+            $check_files[] = 'date.php';
+        } else if (is_post_type_archive()) {
+            $post = get_post(get_the_ID());
+            $post_type = $post->post_type;
+            
+            $check_files[] = 'archive-' . $post_type . '.php';
+        }
+        
+        $check_files[] = 'archive.php';
+    } else if (is_single()) {
+        if (is_attachment()) {
+            $mime_type = get_post_mime_type(get_the_ID());
+            $mime_type_pieces = explode('/', $mime_type);
+            
+            foreach ($mime_type_pieces as $mime_type_piece) {
+                $check_files[] = $mime_type_piece . '.php';
+            }
+            
+            $check_files[] = str_replace('/', '_', $mime_type) . '.php';
+            $check_files[] = 'attachment.php';
+        }
+        
+        $post = get_post(get_the_ID());
+        $post_type = $post->post_type;
+
+        $check_files[] = 'single-' . $post_type . '.php';
+        $check_files[] = 'single.php';
+    } else if (is_page()) {
+        $page = get_post(get_the_ID());
+        $slug = $page->post_name;
+        $id = $page->ID;
+        
+        $template_name = get_post_meta(get_the_ID(), '_wp_page_template', true);
+        
+        if (strpos('.php', $template_name) !== false) {
+            $check_files[] = $template_name;
+        }
+        
+        $check_files[] = 'page-' . $slug . '.php';
+        $check_files[] = 'page-' . $id . '.php';
+        $check_files[] = 'page.php';
+    } else if (is_comments_popup()) {
+        $check_files[] = 'comments-popup.php';
+    }
     
-    return $file;
+    if (is_home()) {
+        $check_files[] = 'home.php';
+    }
+    
+    $check_files[] = 'index.php';
+    
+    $file = wpbp_file_exists_cascade($check_files, $path . '/');
+    
+    return $path . '/' . $file;
 }
 
 /**
@@ -109,7 +176,7 @@ function wpbp_get_the_content_filtered($template_path = null, $stripteaser = fal
  * whitespace. Due to the fact that new lines are removed, single-line comments
  * within the &lt;script&gt; tag are converted to multi-line comments
  *
- * @param string $html
+ * @param string $html The HTML to be minified.
  * @return string
  */
 function wpbp_minify_html($html) {
@@ -134,7 +201,7 @@ function wpbp_minify_html($html) {
  * 
  * Removes special characters from a string.
  * 
- * @param string $string
+ * @param string $string The string to be sluggified.
  * @return string
  */
 function wpbp_sluggify($string) {
