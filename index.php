@@ -15,7 +15,11 @@ wp_enqueue_style('default_stylesheet', THEME_URL . '/css/style.css');
 //wp_enqueue_script('{handle-goes-here}', THEME_URL . '{path-to-file}', array(), false, true); // This is a sample usage of the wp_enqueue_script function
 
 // Load the appropriate page template
-
+ob_start();
+ob_clean();
+include(wpbp_get_template_file(THEME_PATH . '/inc/templates'));
+define(PAGE, ob_get_contents());
+ob_end_clean();
 
 ?>
 <!doctype html>
@@ -36,6 +40,8 @@ wp_enqueue_style('default_stylesheet', THEME_URL . '/css/style.css');
 <body>
     <!--[if lt IE 7]><p class=chromeframe>Your browser is <em>ancient!</em> <a href="http://browsehappy.com/">Upgrade to a different browser</a> or <a href="http://www.google.com/chromeframe/?redirect=true">install Google Chrome Frame</a> to experience this site.</p><![endif]-->
     
+    <?php echo PAGE; ?>
+    
     <script src="<?php echo THEME_URL; ?>/js/jquery-1.7.1.min.js"></script>
     
     <?php wp_footer(); ?>
@@ -53,7 +59,7 @@ wp_enqueue_style('default_stylesheet', THEME_URL . '/css/style.css');
 $html = ob_get_contents();
 ob_end_clean();
 
-if (!isset($_REQUEST['debug'])) {
+if (!isset($_REQUEST['__nominify'])) {
     $html = wpbp_minify_html($html);
 }
 

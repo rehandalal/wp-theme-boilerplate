@@ -59,13 +59,20 @@ function wpbp_get_template_file($path) {
     } else if (is_search()) {
         $file = wpbp_file_exists_cascade($path . '/search.php');
     } else if (is_tax()) {
-        $file = wpbp_file_exists_cascade(array(
+        $taxonomy = get_query_var('taxonomy');
+        $term = get_query_var($taxonomy);
+        
+        $file = wpbp_file_exists_cascade(array(        
             $path . '/taxonomy-' . $taxonomy . '-' . $term . '.php',
-            $path . '/taxonomy-' . $term . '.php',
+            $path . '/taxonomy-' . $taxonomy . '.php',
             $path . '/taxonomy.php',
             $path . '/archive.php',
         ));
     } else if (is_category()) {
+        $category = get_category(get_query_var('cat'));
+        $id = $category->cat_ID;
+        $slug = $category->slug;
+        
         $file = wpbp_file_exists_cascade(array(
             $path . '/category-' . $slug . '.php',
             $path . '/category-' . $id . '.php',
