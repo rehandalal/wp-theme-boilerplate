@@ -107,10 +107,6 @@ function wpbp_get_template_file($path) {
         }
         
         $check_files[] = 'archive.php';
-        
-        if (is_paged()) {
-            $check_files[] = 'paged.php';
-        }
     } else if (is_single()) {
         if (is_attachment()) {
             $mime_type = get_post_mime_type(get_the_ID());
