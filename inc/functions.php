@@ -99,6 +99,7 @@ function wpbp_get_template_file($path) {
         } else if (is_date()) {
             $check_files[] = 'date.php';
         } else if (is_post_type_archive()) {
+            // TODO: This needs to be verified
             $post = get_post(get_the_ID());
             $post_type = $post->post_type;
             
@@ -106,6 +107,10 @@ function wpbp_get_template_file($path) {
         }
         
         $check_files[] = 'archive.php';
+        
+        if (is_paged()) {
+            $check_files[] = 'paged.php';
+        }
     } else if (is_single()) {
         if (is_attachment()) {
             $mime_type = get_post_mime_type(get_the_ID());
